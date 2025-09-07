@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Command Reference</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                    },
+                },
+            },
+            darkMode: 'class',
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-200">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-center mb-2 text-primary">Real Time Scenario Based Linux Implementations</h1>
+            <p class="text-center mb-6">A collection of practical Linux commands for common scenarios</p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                <div class="relative flex-grow">
+                    <input id="searchInput" type="text" placeholder="Search commands, scenarios, or explanations..." 
+                           class="w-full p-3 pl-10 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-primary">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="toggleViewBtn" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-opacity-90 transition-colors">
+                        <i class="fas fa-th-list mr-2"></i><span>Compact View</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div id="commandCount" class="mb-4 text-gray-600 dark:text-gray-400"></div>
+            <div id="commandsContainer" class="grid grid-cols-1 gap-6"></div>
+        </main>
+    </div>
+
+    <script>
+        // Check for dark mode preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Command data from the PDF
+        const commands = [
+            {
+                id: 1,
+                title: "Kill the Process Consuming the Most Memory",
+                scenario: "Your application server is lagging. You suspect a memory-hogging process.",
+                command: "ps aux --sort=-%mem | head -n 5\nkill -9 <PID>",
+                explanation: "• ps aux: Lists all processes with memory and CPU stats.\n• --sort=-%mem: Sorts by memory usage (descending).\n• kill -9 <PID>: Forcefully kills the process.",
+                useCase: "Quick intervention when a Java or Python app leaks memory."
+            },
+            {
+                id: 2,
+                title: "Check Listening Ports and Services",
+                scenario: "Your app fails to start because the port is in use.",
+                command: "ss -tuln",
+                explanation: "Shows TCP/UDP listening ports and prevents port conflicts."
+            },
+            {
+                id: 3,
+                title: "Detect Which Process Is Writing Excessively to Disk",
+                scenario: "EBS disk fills up fast; logs or temp files suspected.",
+                command: "sudo apt update\nsudo apt install iotop -y\nsudo iotop -o",
+                explanation: "Displays real-time I/O activity sorted by process."
+            },
+            {
+                id: 4,
+                title: "Find Files Recently Modified (Last 2 Hours)",
+                scenario: "Something broke after deployment; need to see recent file changes.",
+                command: "find /var/www -type f -mmin -120",
+                explanation: "Finds files modified in the last 120 minutes within the /var/www directory."
+            },
+            {
+                id: 5,
+                title: "List All Processes of a Specific User",
+                scenario: "You need to audit or kill all processes owned by a specific user.",
+                command: "ps -u username",
+                explanation: "Lists all processes owned by the specified username."
+            },
+            {
+                id: 6,
+                title: "Create a Temporary User With Expiry",
+                scenario: "A temp contractor or intern needs server access for a week.",
+                command: "sudo useradd -e 2025-06-01 tempuser\nsudo passwd tempuser\nsudo chage -d 0 tempuser",
+                explanation: "Creates a user with an expiry date and forces password change on first login."
+            },
+            {
+                id: 7,
+                title: "Find the Process Listening on a Specific Port",
+                scenario: "Port 8080 is in use and blocking your app.",
+                command: "sudo lsof -i :8080",
+                explanation: "Lists processes using port 8080."
+            },
+            {
+                id: 8,
+                title: "Monitor Real-Time CPU Usage by Processes",
+                scenario: "Server CPU usage is spiking.",
+                command: "top -o %CPU",
+                explanation: "Shows real-time process list sorted by CPU usage."
+            },
+            {
+                id: 9,
+                title: "List All Cron Jobs for a Specific User",
+                scenario: "You suspect a cron job is auto-running at midnight.",
+                command: "crontab -u ubuntu -l",
+                explanation: "Lists all scheduled cron jobs for the specified user."
+            },
+            {
+                id: 10,
+                title: "Backup Only .conf Files With Folder Structure",
+                scenario: "You need to archive only configuration files.",
+                command: "rsync -av --prune-empty-dirs \\\n --include='*/' \\\n --include='*.conf' \\\n --include='**/*.conf' \\\n --exclude='*' \\\n /etc/nginx/ backup/nginx/",
+                explanation: "Backs up only .conf files while preserving the directory structure."
+            },
+            {
+                id: 11,
+                title: "Check Logs From Previous Boot",
+                scenario: "A VM rebooted last night; need logs from that boot.",
+                command: "journalctl -b -1",
+                explanation: "Shows system logs from the previous boot session."
+            },
+            {
+                id: 12,
+                title: "Check System Uptime and Load Averages",
+                scenario: "You're reporting uptime or checking server stability.",
+                command: "uptime",
+                explanation: "Displays how long the system has been running and the load averages."
+            },
+            {
+                id: 13,
+                title: "Find Zombie Processes",
+                scenario: "System load is low, but defunct processes remain.",
+                command: "ps aux | awk '$8==\"Z\" { print $0 }'",
+                explanation: "Lists processes in the zombie state (defunct processes)."
+            },
+            {
+                id: 14,
+                title: "Find Directories Using the Most Disk Space",
+                scenario: "Your disk is 98% full and you need to know where.",
+                command: "du -h --max-depth=1 / | sort -hr",
+                explanation: "Shows directories sorted by disk usage (largest first)."
+            },
+            {
+                id: 15,
+                title: "Display Top 10 Largest Files in a Directory Tree",
+                scenario: "You want to find large files in /var for cleanup.",
+                command: "find /var -type f -exec du -h {} + | sort -rh | head -n 10",
+                explanation: "Finds and displays the 10 largest files in the /var directory."
+            },
+            {
+                id: 16,
+                title: "Check Inode Usage",
+                scenario: "You're out of inodes even though disk space remains.",
+                command: "df -i",
+                explanation: "Shows inode usage for all mounted filesystems."
+            },
+            {
+                id: 17,
+                title: "Monitor Real-Time System Logs",
+                scenario: "You want to tail live logs from a systemd service.",
+                command: "journalctl -u nginx.service -f",
+                explanation: "Shows and follows the logs for a specific systemd service in real-time."
+            },
+            {
+                id: 18,
+                title: "Monitor Real-Time Process Tree",
+                scenario: "You want to see parent-child process relationships.",
+                command: "pstree -p",
+                explanation: "Displays processes in a tree format showing their relationships."
+            },
+            {
+                id: 19,
+                title: "Check Who Is Logged In",
+                scenario: "You want to verify who is active during a maintenance window.",
+                command: "w",
+                explanation: "Shows who is logged in and what they're doing."
+            },
+            {
+                id: 20,
+                title: "Kill All Processes Belonging to a User",
+                scenario: "A test user left rogue processes running.",
+                command: "pkill -u tempuser",
+                explanation: "Terminates all processes owned by the specified user."
+            },
+            {
+                id: 21,
+                title: "Watch Logs for 'error' Messages in Real Time",
+                scenario: "You're live-debugging a production issue.",
+                command: "tail -f /var/log/syslog | grep -i --line-buffered \"error\"",
+                explanation: "Monitors log file in real-time, showing only lines containing 'error'."
+            },
+            {
+                id: 22,
+                title: "Check DNS Resolution",
+                scenario: "Your app can't reach an external API.",
+                command: "dig api.example.com +short",
+                explanation: "Queries DNS for a domain and shows just the IP address."
+            },
+            {
+                id: 23,
+                title: "Limit Bandwidth While Downloading with wget",
+                scenario: "You're on a shared server and need to download a large file without hogging bandwidth.",
+                command: "wget --limit-rate=1m https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.11_9.tar.gz",
+                explanation: "Downloads a file with bandwidth limited to 1 MB/s."
+            },
+            {
+                id: 24,
+                title: "Reboot a System After 60 Seconds With Warning",
+                scenario: "You want to notify users and reboot the system gracefully.",
+                command: "sudo shutdown -r +1 \"Rebooting for maintenance. Save your work.\"",
+                explanation: "Schedules a reboot in 1 minute with a warning message to all users."
+            },
+            {
+                id: 25,
+                title: "Watch Memory and CPU Usage of a Process",
+                scenario: "You suspect a specific PID is leaking memory.",
+                command: "watch -n 2 \"ps -p <PID> -o %cpu,%mem,cmd\"",
+                explanation: "Monitors CPU and memory usage of a specific process every 2 seconds."
+            },
+            {
+                id: 26,
+                title: "Schedule a One-Time Task With at",
+                scenario: "You want to execute a command 15 minutes from now.",
+                command: "echo \"reboot\" | at now + 15 minutes",
+                explanation: "Schedules a one-time command to run after a specified delay."
+            },
+            {
+                id: 27,
+                title: "Run a Script Only if the Previous Command Succeeded",
+                scenario: "You want to build only if git pull is successful.",
+                command: "git pull && ./build.sh",
+                explanation: "Runs the second command only if the first command succeeds."
+            },
+            {
+                id: 28,
+                title: "Retry Until a Command Succeeds",
+                scenario: "You're waiting for a service to come online.",
+                command: "until curl -s http://localhost:8080/health; do sleep 5; done",
+                explanation: "Repeatedly tries a command until it succeeds, with a 5-second pause between attempts."
+            },
+            {
+                id: 29,
+                title: "Create a Compressed Tarball of a Directory",
+                scenario: "You want to archive and compress an entire folder (e.g., before deployment or backup).",
+                command: "tar -czvf backup.tar.gz /path/to/folder",
+                explanation: "• tar: Archive tool.\n• -c: Create a new archive.\n• -z: Compress using gzip.\n• -v: Verbose — shows files being added.\n• -f: Specifies the filename for the archive.\n• backup.tar.gz: The output file.\n• /path/to/folder: The directory you're archiving."
+            },
+            {
+                id: 30,
+                title: "Extract a Tar.gz Archive",
+                scenario: "You need to extract a .tar.gz archive you downloaded or backed up.",
+                command: "tar -xzvf backup.tar.gz",
+                explanation: "• -x: Extract.\n• -z: Use gzip.\n• -v: Verbose output.\n• -f: Specifies the file to extract."
+            },
+            {
+                id: 31,
+                title: "Show Disk Usage of All Mounted Partitions",
+                scenario: "Disk space is running out, and you want an overview of each partition.",
+                command: "df -h",
+                explanation: "• df: Disk filesystem usage.\n• -h: Human-readable sizes (e.g., GB/MB)."
+            },
+            {
+                id: 32,
+                title: "Show Mounted Disks and Filesystems",
+                scenario: "You want to list all block devices, filesystems, and mount points.",
+                command: "lsblk -f",
+                explanation: "• lsblk: Lists block devices (disks, partitions).\n• -f: Shows filesystem info like mount point and type."
+            },
+            {
+                id: 33,
+                title: "Show Memory Usage Summary",
+                scenario: "You want to quickly check how much RAM is used/free.",
+                command: "free -h",
+                explanation: "• free: Displays memory usage.\n• -h: Human-readable output."
+            },
+            {
+                id: 34,
+                title: "List All Installed Packages (Debian-based)",
+                scenario: "You want to audit installed software on a system.",
+                command: "dpkg -l",
+                explanation: "Lists all installed packages on a Debian-based system."
+            },
+            {
+                id: 35,
+                title: "Update and Upgrade All Packages",
+                scenario: "You want to ensure all packages are up to date.",
+                command: "sudo apt update && sudo apt upgrade -y",
+                explanation: "Updates package lists and upgrades all packages to the latest versions."
+            },
+            {
+                id: 36,
+                title: "Check Last 100 Lines of Nginx Log",
+                scenario: "You want to view recent web server activity.",
+                command: "tail -n 100 /var/log/nginx/access.log",
+                explanation: "Shows the last 100 lines of the Nginx access log."
+            },
+            {
+                id: 37,
+                title: "Search Files for a Keyword Recursively",
+                scenario: "You need to find all places where \"TODO\" comments exist in a project.",
+                command: "grep -r \"TODO\" .",
+                explanation: "Searches for a pattern in all files recursively from the current directory."
+            },
+            {
+                id: 38,
+                title: "Securely Copy a File to a Remote Server",
+                scenario: "You need to move a local file to a remote host.",
+                command: "scp file.txt user@host:/remote/path/",
+                explanation: "Copies a file to a remote server using SSH secure copy."
+            },
+            {
+                id: 39,
+                title: "Find All .log Files Larger Than 100MB",
+                scenario: "You're auditing large log files that may be filling disk space.",
+                command: "find /var/log -name \"*.log\" -size +100M",
+                explanation: "Finds all log files over 100MB in size in the /var/log directory."
+            },
+            {
+                id: 40,
+                title: "Show All Open Network Connections",
+                scenario: "You want to audit running services and their ports.",
+                command: "netstat -tulnp",
+                explanation: "Shows all active TCP/UDP connections and which processes own them."
+            },
+            {
+                id: 41,
+                title: "Start a Service With systemd",
+                scenario: "You want to manually start a service (e.g., nginx).",
+                command: "sudo systemctl start nginx",
+                explanation: "Starts a systemd service."
+            },
+            {
+                id: 42,
+                title: "Enable a Service to Start on Boot",
+                scenario: "You want a service to auto-start after reboot.",
+                command: "sudo systemctl enable nginx",
+                explanation: "Configures a service to start automatically at boot time."
+            },
+            {
+                id: 43,
+                title: "Check the Status of a Service",
+                scenario: "You want to see if a service is running and healthy.",
+                command: "sudo systemctl status nginx",
+                explanation: "Shows the current status, recent logs, and state of a systemd service."
+            },
+            {
+                id: 44,
+                title: "Monitor Real-Time Network Usage",
+                scenario: "You're diagnosing live network throughput per interface.",
+                command: "sudo apt install iftop -y\nsudo iftop",
+                explanation: "Shows real-time network usage by interface."
+            },
+            {
+                id: 45,
+                title: "Show Environment Variables",
+                scenario: "You need to check environment variables for debugging.",
+                command: "printenv",
+                explanation: "Displays all environment variables for the current session."
+            },
+            {
+                id: 46,
+                title: "Set an Environment Variable Temporarily",
+                scenario: "You want to set a variable for the current session only.",
+                command: "export MY_VAR=value",
+                explanation: "Sets an environment variable for the current shell session."
+            },
+            {
+                id: 47,
+                title: "List All Users on the System",
+                scenario: "You want to audit which users exist.",
+                command: "cut -d: -f1 /etc/passwd",
+                explanation: "Extracts and lists all usernames from the passwd file."
+            },
+            {
+                id: 48,
+                title: "Find Out Which User Owns a File",
+                scenario: "You want to check file ownership for access control.",
+                command: "ls -l filename",
+                explanation: "Shows detailed file information including owner and permissions."
+            },
+            {
+                id: 49,
+                title: "Change Ownership of a File",
+                scenario: "You're assigning a file to a different user or group.",
+                command: "sudo chown user:group file",
+                explanation: "Changes the owner and group of a file or directory."
+            },
+            {
+                id: 50,
+                title: "Change Permissions of a Script to Executable",
+                scenario: "You've created a shell script and want to make it runnable.",
+                command: "chmod +x script.sh",
+                explanation: "Adds executable permission to a file."
+            }
+        ];
+
+        // DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const commandsContainer = document.getElementById('commandsContainer');
+        const commandCount = document.getElementById('commandCount');
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        
+        // Track the current view mode
+        let isCompactView = false;
+
+        // Function to render commands
+        function renderCommands(filteredCommands = commands) {
+            commandsContainer.innerHTML = '';
+            commandCount.textContent = `Showing ${filteredCommands.length} of ${commands.length} commands`;
+            
+            filteredCommands.forEach(command => {
+                const commandCard = document.createElement('div');
+                commandCard.className = `command-card rounded-lg overflow-hidden border dark:border-gray-700 ${isCompactView ? 'compact' : ''}`;
+                
+                // Command header (always visible)
+                const header = document.createElement('div');
+                header.className = 'p-4 bg-gray-50 dark:bg-gray-800 cursor-pointer flex justify-between items-center border-b dark:border-gray-700';
+                header.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="font-bold text-primary mr-2">${command.id}.</span>
+                        <h2 class="font-semibold">${command.title}</h2>
+                    </div>
+                    <i class="fas fa-chevron-down transition-transform duration-200"></i>
+                `;
+                
+                // Command details (expandable)
+                const details = document.createElement('div');
+                details.className = `p-4 bg-white dark:bg-gray-900 ${isCompactView ? 'hidden' : ''}`;
+                
+                // Scenario
+                const scenarioDiv = document.createElement('div');
+                scenarioDiv.className = 'mb-3';
+                scenarioDiv.innerHTML = `
+                    <h3 class="font-medium text-gray-700 dark:text-gray-300">Scenario:</h3>
+                    <p class="mt-1 text-gray-600 dark:text-gray-400">${command.scenario}</p>
+                `;
+                
+                // Command
+                const commandDiv = document.createElement('div');
+                commandDiv.className = 'mb-3';
+                commandDiv.innerHTML = `
+                    <h3 class="font-medium text-gray-700 dark:text-gray-300">Command:</h3>
+                    <pre class="mt-1 p-3 bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto">${command.command}</pre>
+                `;
+                
+                // Explanation
+                const explanationDiv = document.createElement('div');
+                explanationDiv.className = 'mb-3';
+                explanationDiv.innerHTML = `
+                    <h3 class="font-medium text-gray-700 dark:text-gray-300">Explanation:</h3>
+                    <p class="mt-1 text-gray-600 dark:text-gray-400 whitespace-pre-line">${command.explanation}</p>
+                `;
+                
+                // Use Case (if available)
+                if (command.useCase) {
+                    const useCaseDiv = document.createElement('div');
+                    useCaseDiv.innerHTML = `
+                        <h3 class="font-medium text-gray-700 dark:text-gray-300">Use Case:</h3>
+                        <p class="mt-1 text-gray-600 dark:text-gray-400">${command.useCase}</p>
+                    `;
+                    details.appendChild(useCaseDiv);
+                }
+                
+                // Add all sections to details
+                details.appendChild(scenarioDiv);
+                details.appendChild(commandDiv);
+                details.appendChild(explanationDiv);
+                
+                // Add header and details to card
+                commandCard.appendChild(header);
+                commandCard.appendChild(details);
+                
+                // Toggle details when header is clicked
+                header.addEventListener('click', () => {
+                    const chevron = header.querySelector('i');
+                    chevron.classList.toggle('rotate-180');
+                    details.classList.toggle('hidden');
+                });
+                
+                // Add the card to the container
+                commandsContainer.appendChild(commandCard);
+            });
+        }
+
+        // Implement search functionality
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            if (searchTerm === '') {
+                renderCommands();
+                return;
+            }
+            
+            const filteredCommands = commands.filter(command => {
+                return (
+                    command.title.toLowerCase().includes(searchTerm) ||
+                    command.scenario.toLowerCase().includes(searchTerm) ||
+                    command.command.toLowerCase().includes(searchTerm) ||
+                    command.explanation.toLowerCase().includes(searchTerm) ||
+                    (command.useCase && command.useCase.toLowerCase().includes(searchTerm))
+                );
+            });
+            
+            renderCommands(filteredCommands);
+        });
+
+        // Toggle between compact and expanded view
+        toggleViewBtn.addEventListener('click', () => {
+            isCompactView = !isCompactView;
+            const btnText = toggleViewBtn.querySelector('span');
+            const btnIcon = toggleViewBtn.querySelector('i');
+            
+            if (isCompactView) {
+                btnText.textContent = 'Expanded View';
+                btnIcon.className = 'fas fa-th-large mr-2';
+            } else {
+                btnText.textContent = 'Compact View';
+                btnIcon.className = 'fas fa-th-list mr-2';
+            }
+            
+            renderCommands();
+        });
+
+        // Initial render
+        renderCommands();
+    </script>
+</body>
+</html>
