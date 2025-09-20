@@ -10,6 +10,8 @@ Keep these handy while working in Windows PowerShell / PowerShell 7.
 # Works even if Desktop is redirected to OneDrive
 cd ([Environment]::GetFolderPath('Desktop'))
 
+cd C:\Users\ofosu\OneDrive\Desktop
+
 # Alternative (explicit OneDrive path if KFB is enabled)
 cd "$env:OneDrive\Desktop"
 ```
